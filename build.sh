@@ -183,5 +183,6 @@ pushd .build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 make -j
 # gdb \
-./smc40cr
+# ./smc40cr
+./smc40cr_test
 popd
