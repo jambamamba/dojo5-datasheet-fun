@@ -40,8 +40,10 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClkSped, unsigned in
 #define STATIC static
 #endif
 
-STATIC bool validateTheSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed);
-STATIC unsigned int validateBusClockDivider(unsigned int busClockDivider);
+STATIC bool validateSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed);
+STATIC bool validateBusClockDivider(unsigned int busClockDivider);
+STATIC bool switchDefaultClock();
+STATIC bool configurePLL(System_Clock_Speeds_t sysClockSpeed);
 
 #ifdef __cplusplus
 }
