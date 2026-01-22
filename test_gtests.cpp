@@ -256,6 +256,10 @@ TEST(SMC_40CR2, selectBusClockDivider) {
 
 }
 
+
+TEST(SMC_40CR2, switchClock) {
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
