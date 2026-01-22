@@ -139,6 +139,22 @@ TEST(SMC_40CR2, configurePLL) {
   ASSERT_EQ(RCC_PLLCFGR_DIV_2, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
   ASSERT_FALSE(configurePLL(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1)));
 }
+selectSystemClockDivider(System_Clock_Speeds_t sysClockSpeed)
+
+TEST(SMC_40CR2, selectSystemClockDivider) {
+  selectSystemClockDivider(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_UNDEFINED-1));
+  selectSystemClockDivider(SYS_CLOCK_SPEED_UNDEFINED);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_160M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_80M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_40M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_20M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_10M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_5M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_2_5M);
+  selectSystemClockDivider(SYS_CLOCK_SPEED_1_25M);
+  selectSystemClockDivider(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1));
+
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
