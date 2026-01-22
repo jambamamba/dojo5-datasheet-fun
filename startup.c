@@ -78,7 +78,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     while (1)
     {
       LOG("Fix Clock and wait for CLKSEL to be DEF_CLOCK");
-      //osm:bug? rccCrReg = RCC->CR;
+      // rccCrReg = RCC->CR; //osm:bug? technically works, but to be consistent with other parts of the code, should not be used like this
       rccCrReg = RCC_CR;
       if ((rccCrReg & RCC_CR_CLKSEL) == 0)
       {
@@ -157,7 +157,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
   // Turn on the PLL and wait for it to be ready. Max time to be ready
   // is in CPU cycles so if we adhere to this value in a loop we'll be
   // sure to have waited that long.
-  RCC_CR |= RCC_CR_PLLON;//osm:bug RCC_CR_SYS_DIV_* got set before PLL
+  RCC_CR |= RCC_CR_PLLON;//osm:bug RCC_CR_SYS_DIV_* got above, before we set PLL; see step 4, 5 in doc. PLL must be set after PLL_RDY
   bool isPllReady = false;
   uint32_t timeoutCycles = 0U;
   do
@@ -180,8 +180,8 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     // Internal clock!
     // Set HSION to 1 and wait for HSIRDY to be 1
     // Then set DEF_CLOCK to 0 and wait for CLKSEL to be HSI
-    //osm:bug RCC_CR |= RCC_CR_HSEON;
-    RCC_CR |= RCC_CR_HSION;
+    // RCC_CR |= RCC_CR_HSEON; //osm:bug We are doing internal clock here.
+    RCC_CR |= RCC_CR_HSION; //fix
     timeoutCycles = 0U;
     do
     {
@@ -206,7 +206,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     } while (!isClkReady && (timeoutCycles < HSERDY_MAX_TIME_IN_CYCLES));
   }
 
-  isClkReady = true;//osm
+  isClkReady = true;//osm: for mocking, assume clk is ready
   // If neither hsi nor hse is ready then exit out!
   if (!isClkReady)
   {
@@ -216,13 +216,13 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
 
   LOG("set DEF_CLOCK to 0 and wait for CLKSEL ");
   // Finally, set DEF_CLOCK to 0 and wait for CLKSEL to be HSE or HSI
-  //osm:bug uint8_t clockselTimeout = 0U;
-  uint32_t clockselTimeout = 0U;
+  // uint8_t clockselTimeout = 0U; //osm:bug, uint8_t is too small, results in infinite loop below
+  uint32_t clockselTimeout = 0U; //fix
   RCC_CR = (RCC_CR & ~RCC_CR_DEF_CLOCK);
   do
   {
     rccCrReg = RCC_CR;
-    isClkReady = ((rccCrReg & RCC_CR_CLKSEL) != 0);
+    isClkReady = ((rccCrReg & RCC_CR_CLKSEL) != 0);//osm:bug - should check explicitly for RCC_CR_CLKSEL_0 or RCC_CR_CLKSEL_1, because this test will pass for RCC_CR_CLKSEL_0|RCC_CR_CLKSEL_1 which would be wrong
     clockselTimeout++;
     // LOG("clockselTimeout:%i, timeoutCycles:%i", clockselTimeout, timeoutCycles);
   } while (!isClkReady && (clockselTimeout < CLKSEL_SWITCH_MAX_TIME_IN_CYCLES));
@@ -234,7 +234,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     RCC_CR_CLKSEL_1,
     RCC_CR & RCC_CR_DEF_CLOCK
   );
-  // Verify //osm:bug Verification needs to be above in the do/while loop
+  // Verify
   if (isHsiClock) //osm:bug Verification needs to be above in the do/while loop
   {
     // The clksel value should be 0b01 for HSI
