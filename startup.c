@@ -15,12 +15,35 @@
 #include "startup.h"
 #include "logger.h"
 
-#define CLKSEL_SWITCH_MAX_TIME_IN_CYCLES     500UL
-#define HSIRDY_MAX_TIME_IN_CYCLES            1400UL
-#define HSERDY_MAX_TIME_IN_CYCLES            4200UL
-#define RCC_CR_HSION                         (1UL << RCC_CR_HSION_Pos)  
+static const uint32_t CLKSEL_SWITCH_MAX_TIME_IN_CYCLES =     500UL;
+static const uint32_t HSIRDY_MAX_TIME_IN_CYCLES =            1400UL;
+static const uint32_t HSERDY_MAX_TIME_IN_CYCLES =            4200UL;
+static const uint32_t PLL_READY_TIME_OUT_CYCLES =            350UL;
 
-uint32_t g_PllReadyTimeoutCycles = 350;
+bool validateTheSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed) {
+
+  return ((sysClockSpeed > SYS_CLOCK_SPEED_UNDEFINED) && (sysClockSpeed <= SYS_CLOCK_SPEED_MAX_ENUM_VAL));
+}
+
+unsigned int validateBusClockDivider(unsigned int busClockDivider) {
+
+  switch (busClockDivider) {
+    case 2: // Divide by 2
+      return RCC_CR_BUS_DIV_0; // Set bits 7-8 to 0b01
+    
+    case 4: // Divide by 4
+      return RCC_CR_BUS_DIV_1; // Set bits 7-8 to 0b10
+
+    case 0:
+    default: // Invalid value, just set busClockRegVal to 0
+      return 0;
+  }
+}
+
+static void unlockRCC() {
+  RCC_UNL = 0x56DD;
+  RCC_UNH = 0xA3B2;
+}
 
 /**
  * @brief  Configures the system and bus clock config based on what is provided
@@ -31,41 +54,13 @@ uint32_t g_PllReadyTimeoutCycles = 350;
  * @param isHsiClock If true, then desired to use the internal HSI clock. If false, then use external HSE clock.
  * @retval 0 if success, -1 if timeout or error
  */
-int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned int BusClockDivider, bool isHsiClock)
-{
-  LOG("Enter: sysClockSpeed:%i, BusClockDivider:%i, isHsiClock:%i", sysClockSpeed, BusClockDivider, isHsiClock);
-  // Validate the system clock speed
-  if ((sysClockSpeed > SYS_CLOCK_SPEED_MAX_ENUM_VAL) || (sysClockSpeed == SYS_CLOCK_SPEED_UNDEFINED))
-  {
+int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned int BusClockDivider, bool isHsiClock) {
+
+  if (!validateTheSystemClockSpeed(sysClockSpeed)) {
     return -1;
   }
-
-  // Validate the bus clock divider
-  unsigned int busClockRegVal = 0;
-  switch (BusClockDivider) {
-    case 0:
-      busClockRegVal = 0;
-      break;
-
-    case 2: // Divide by 2
-      busClockRegVal = RCC_CR_BUS_DIV_0; // Set bits 7-8 to 0b01
-      break;
-    
-    case 4: // Divide by 4
-      busClockRegVal = RCC_CR_BUS_DIV_1; // Set bits 7-8 to 0b10
-      break;
-
-    default: // Invalid value, just set busClockRegVal to 0
-      busClockRegVal = 0;
-      break;
-  }
-  LOG("busClockRegVal: 0x%x", busClockRegVal);
-
-  
-  LOG("Unlock RCC");
-  // If everything is valid up to this point, unlock the RCC registers
-  RCC_UNL = 0x56DD;
-  RCC_UNH = 0xA3B2;
+  unsigned int busClockRegVal = validateBusClockDivider(BusClockDivider);
+  unlockRCC();
 
   // If the current clock is not the default clock, then we need to switch it
   // before proceeding
@@ -166,7 +161,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     isPllReady = ((rccCrReg & RCC_CR_PLL_RDY) != 0);
     timeoutCycles++;
     // LOG("timeoutCycles:%i", timeoutCycles);
-  } while (!isPllReady && (timeoutCycles < g_PllReadyTimeoutCycles));
+  } while (!isPllReady && (timeoutCycles < PLL_READY_TIME_OUT_CYCLES));
 
   LOG("Set the BUS_DIV");
   // Set the BUS_DIV value so the bus clock is correct. 

@@ -12,6 +12,10 @@
 #ifndef STARTUP__H
 #define STARTUP__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -30,7 +34,17 @@ typedef enum {
 
 int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClkSped, unsigned int BusClockDivider, bool isHsiClock);
 
-extern uint32_t g_PllReadyTimeoutCycles;
+#ifdef TEST_STATIC_METHODS
+#define STATIC
+#else
+#define STATIC static
+#endif
 
+STATIC bool validateTheSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed);
+STATIC unsigned int validateBusClockDivider(unsigned int busClockDivider);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // STARTUP__H
