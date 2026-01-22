@@ -233,15 +233,27 @@ TEST(SMC_40CR2, selectSystemClockDivider) {
   
   getRCC()->CR = 0;
   selectSystemClockDivider(SYS_CLOCK_SPEED_2_5M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_0, getRCC()->CR & RCC_CR_SYS_DIV);
+  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_0, RCC_CR_SYS_DIV_0);
 
   getRCC()->CR = 0;
   selectSystemClockDivider(SYS_CLOCK_SPEED_1_25M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_1, getRCC()->CR & RCC_CR_SYS_DIV);
+  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_1, RCC_CR_SYS_DIV_1);
 
   getRCC()->CR = 0;
   selectSystemClockDivider(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1));
   ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
+}
+
+
+TEST(SMC_40CR2, selectBusClockDivider) {
+    getRCC()->CR = 0;
+    selectBusClockDivider(2);
+    ASSERT_EQ(getRCC()->CR & RCC_CR_BUS_DIV_0, RCC_CR_BUS_DIV_0);
+
+    getRCC()->CR = 0;
+    selectBusClockDivider(4);
+    ASSERT_EQ(getRCC()->CR & RCC_CR_BUS_DIV_1, RCC_CR_BUS_DIV_1);
+
 }
 
 int main(int argc, char **argv) {
