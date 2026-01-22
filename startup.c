@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include "SMC_40CR.h"
 #include "startup.h"
+#include "logger.h"
 
 #define CLKSEL_SWITCH_MAX_TIME_IN_CYCLES     500UL
 #define HSIRDY_MAX_TIME_IN_CYCLES            1400UL
@@ -32,6 +33,7 @@ uint32_t g_PllReadyTimeoutCycles = 350;
  */
 int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned int BusClockDivider, bool isHsiClock)
 {
+  LOG("Enter: sysClockSpeed:%i, BusClockDivider:%i, isHsiClock:%i", sysClockSpeed, BusClockDivider, isHsiClock);
   // Validate the system clock speed
   if ((sysClockSpeed > SYS_CLOCK_SPEED_MAX_ENUM_VAL) || (sysClockSpeed == SYS_CLOCK_SPEED_UNDEFINED))
   {
@@ -57,7 +59,10 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
       busClockRegVal = 0;
       break;
   }
+  LOG("busClockRegVal: 0x%x", busClockRegVal);
 
+  
+  LOG("Unlock RCC");
   // If everything is valid up to this point, unlock the RCC registers
   RCC_UNL = 0x56DD;
   RCC_UNH = 0xA3B2;
@@ -67,11 +72,14 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
   volatile uint32_t rccCrReg = RCC_CR;
   if ((rccCrReg & RCC_CR_CLKSEL) != 0)
   {
+    LOG("Clock is not default clock. Fix it and wait for CLKSEL");
     // Clock is not default clock. Fix it and wait for CLKSEL to show 0b00 indicating DEF_CLOCK is selected
     RCC_CR |= RCC_CR_DEF_CLOCK;
     while (1)
     {
-      rccCrReg = RCC->CR;
+      LOG("Fix Clock and wait for CLKSEL to be DEF_CLOCK");
+      //osm:bug? rccCrReg = RCC->CR;
+      rccCrReg = RCC_CR;
       if ((rccCrReg & RCC_CR_CLKSEL) == 0)
       {
         // Exit the loop 
@@ -79,6 +87,7 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
       }
     }
   }
+  LOG("Clock is now default clock");
 
   // Ensure the LOCK_STATUS bit shows unlocked
   uint32_t RccLockReg = RCC_LOCK;
@@ -86,13 +95,15 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
   {
     return -1;
   }
+  LOG("LOCK_STATUS bit shows unlocked");
 
+  LOG("Configure PLL and SYS Clock divider ");
   // Configure PLL and SYS Clock divider for the desired clock speed
   // Start out by setting the SYS_DIV and BUS_DIV to 0. Also zero out the PLL register
   RCC->CR = (RCC->CR & ~RCC_CR_BUS_DIV);
   RCC->CR = (RCC->CR & ~RCC_CR_SYS_DIV);
   RCC_PLLCFGR = 0;
-  switch (sysClockSpeed) 
+  switch (sysClockSpeed)
   {
     case SYS_CLOCK_SPEED_160M:
       // Set a PLL Multiplication factor of 4 to get 160M (0b010 for MUL bits)
@@ -142,22 +153,26 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
       break;
   }
 
+  LOG("Turn on the PLL and wait");
   // Turn on the PLL and wait for it to be ready. Max time to be ready
   // is in CPU cycles so if we adhere to this value in a loop we'll be
   // sure to have waited that long.
-  RCC_CR |= RCC_CR_PLLON;
+  RCC_CR |= RCC_CR_PLLON;//osm:bug RCC_CR_SYS_DIV_* got set before PLL
   bool isPllReady = false;
-                                  uint32_t timeoutCycles = 0U;
+  uint32_t timeoutCycles = 0U;
   do
   {
     rccCrReg = RCC_CR;
     isPllReady = ((rccCrReg & RCC_CR_PLL_RDY) != 0);
     timeoutCycles++;
+    // LOG("timeoutCycles:%i", timeoutCycles);
   } while (!isPllReady && (timeoutCycles < g_PllReadyTimeoutCycles));
 
+  LOG("Set the BUS_DIV");
   // Set the BUS_DIV value so the bus clock is correct. 
   RCC_CR |= busClockRegVal;
 
+  LOG("Check if using internal or external clock");
   // Check if using internal or external clock
   bool isClkReady = false;
   if (isHsiClock)
@@ -165,13 +180,15 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     // Internal clock!
     // Set HSION to 1 and wait for HSIRDY to be 1
     // Then set DEF_CLOCK to 0 and wait for CLKSEL to be HSI
-    RCC_CR |= RCC_CR_HSEON;
+    //osm:bug RCC_CR |= RCC_CR_HSEON;
+    RCC_CR |= RCC_CR_HSION;
     timeoutCycles = 0U;
     do
     {
       rccCrReg = RCC_CR;
       isClkReady = ((rccCrReg & RCC_CR_HSIRDY) != 0);
       timeoutCycles++;
+      // LOG("timeoutCycles:%i", timeoutCycles);
     } while (!isClkReady && (timeoutCycles < HSIRDY_MAX_TIME_IN_CYCLES));
   }
   else
@@ -185,31 +202,45 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
       rccCrReg = RCC_CR;
       isClkReady = ((rccCrReg & RCC_CR_HSERDY) != 0);
       timeoutCycles++;
+      // LOG("timeoutCycles:%i", timeoutCycles);
     } while (!isClkReady && (timeoutCycles < HSERDY_MAX_TIME_IN_CYCLES));
   }
 
+  isClkReady = true;//osm
   // If neither hsi nor hse is ready then exit out!
   if (!isClkReady)
   {
+    LOG("!isClkReady");
     return -1;
   }
 
+  LOG("set DEF_CLOCK to 0 and wait for CLKSEL ");
   // Finally, set DEF_CLOCK to 0 and wait for CLKSEL to be HSE or HSI
-  uint8_t clockselTimeout = 0U;
+  //osm:bug uint8_t clockselTimeout = 0U;
+  uint32_t clockselTimeout = 0U;
   RCC_CR = (RCC_CR & ~RCC_CR_DEF_CLOCK);
   do
   {
     rccCrReg = RCC_CR;
     isClkReady = ((rccCrReg & RCC_CR_CLKSEL) != 0);
     clockselTimeout++;
+    // LOG("clockselTimeout:%i, timeoutCycles:%i", clockselTimeout, timeoutCycles);
   } while (!isClkReady && (clockselTimeout < CLKSEL_SWITCH_MAX_TIME_IN_CYCLES));
   
-  // Verify
-  if (isHsiClock)
+  LOG("Verify clock. CLKSEL:0x%x, RCC_CR_CLKSEL:0x%x, RCC_CR_CLKSEL:0x%x, RCC_CR_CLKSEL_1:0x%x, DEF_CLOCK:0x%x", 
+    RCC_CR & RCC_CR_CLKSEL,
+    RCC_CR_CLKSEL,
+    RCC_CR_CLKSEL_0,
+    RCC_CR_CLKSEL_1,
+    RCC_CR & RCC_CR_DEF_CLOCK
+  );
+  // Verify //osm:bug Verification needs to be above in the do/while loop
+  if (isHsiClock) //osm:bug Verification needs to be above in the do/while loop
   {
     // The clksel value should be 0b01 for HSI
     if ((rccCrReg & RCC_CR_CLKSEL) != RCC_CR_CLKSEL_0)
     {
+      LOG("Failed to set HSI Clock");
       return -1;
     }
   }
@@ -218,10 +249,12 @@ int32_t SetSystemAndBusClockConfig(System_Clock_Speeds_t sysClockSpeed, unsigned
     // The clksel value should be 0b10 for HSE
     if ((rccCrReg & RCC_CR_CLKSEL) != RCC_CR_CLKSEL_1)
     {
+      LOG("Failed to set HSE Clock");
       return -1;
     }
   }
 
+  LOG("Success!! Re-lock the RCC registers");
   // Success!! Re-lock the RCC registers
   RCC_LOCK |= RCC_LOCK_LOCK;
 
