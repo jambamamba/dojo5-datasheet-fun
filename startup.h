@@ -44,6 +44,7 @@ STATIC bool validateSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed);
 STATIC bool validateBusClockDivider(unsigned int busClockDivider);
 STATIC bool switchDefaultClock();
 STATIC bool configurePLL(System_Clock_Speeds_t sysClockSpeed);
+STATIC void selectSystemClockDivider(System_Clock_Speeds_t sysClockSpeed);
 
 #ifdef __cplusplus
 }
