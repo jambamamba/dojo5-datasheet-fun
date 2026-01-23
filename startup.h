@@ -44,8 +44,12 @@ STATIC bool validateSystemClockSpeed(System_Clock_Speeds_t sysClockSpeed);
 STATIC bool validateBusClockDivider(unsigned int busClockDivider);
 STATIC bool switchDefaultClock();
 STATIC bool configurePLL(System_Clock_Speeds_t sysClockSpeed);
+STATIC bool turnOnPLL();
 STATIC void selectSystemClockDivider(System_Clock_Speeds_t sysClockSpeed);
 STATIC void selectBusClockDivider(unsigned int busClockDivider);
+STATIC bool switchClock(bool isHsiClock);
+
+uint32_t incrementTimeoutCycles(uint32_t timeoutCycles);
 
 #ifdef __cplusplus
 }

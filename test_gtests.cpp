@@ -5,6 +5,8 @@
 
 extern "C" {
 
+typedef void (*ontimer)(uint32_t timeoutCycles);
+void setTimerCallback(ontimer callback);
 /**
  * Unfortunately we cannot include SMC_40CR.h directly 
  * because it creates concrete objects:   
@@ -197,6 +199,17 @@ TEST(SMC_40CR2, configurePLL) {
   ASSERT_FALSE(configurePLL(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1)));
 }
 
+TEST(SMC_40CR2, turnOnPLL) {
+  getRCC()->CR = 0;
+  setTimerCallback([](uint32_t timeoutCycles){
+      if(timeoutCycles >= 5) {
+          getRCC()->CR |= RCC_CR_PLL_RDY;
+      }
+  });
+  ASSERT_TRUE(turnOnPLL());
+  ASSERT_EQ(RCC_CR_PLLON, getRCC()->CR & RCC_CR_PLLON);
+}
+
 TEST(SMC_40CR2, selectSystemClockDivider) {
 
   getRCC()->CR = 0;
@@ -244,7 +257,6 @@ TEST(SMC_40CR2, selectSystemClockDivider) {
   ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
 }
 
-
 TEST(SMC_40CR2, selectBusClockDivider) {
     getRCC()->CR = 0;
     selectBusClockDivider(2);
@@ -256,8 +268,62 @@ TEST(SMC_40CR2, selectBusClockDivider) {
 
 }
 
+TEST(SMC_40CR2, switchClockInternalFailureWhenHSINotReadyAndClockSwitchTimeout) {
+  getRCC()->CR = 0;
+  setTimerCallback(nullptr);
+  ASSERT_FALSE(switchClock(true));
+  ASSERT_EQ(getRCC()->CR & RCC_CR_HSION, RCC_CR_HSION);
+}
 
-TEST(SMC_40CR2, switchClock) {
+TEST(SMC_40CR2, switchClockInternalFailureWhenHSIReadyAndClockSwitchTimeout) {
+  getRCC()->CR = 0;
+  setTimerCallback([](uint32_t timeoutCycles){
+      if(timeoutCycles >= 5) {
+          getRCC()->CR |= RCC_CR_HSIRDY;
+      }
+  });
+  ASSERT_FALSE(switchClock(true));
+}
+
+TEST(SMC_40CR2, switchClockInternalSuccess) {
+  getRCC()->CR = 0;
+  setTimerCallback([](uint32_t timeoutCycles){
+      if(timeoutCycles >= 5) {
+          getRCC()->CR |= RCC_CR_HSIRDY|RCC_CR_CLKSEL_0;
+      }
+  });
+  ASSERT_TRUE(switchClock(true));
+}
+
+TEST(SMC_40CR2, switchClockExternalFailureWhenHSINotReadyAndClockSwitchTimeout) {
+  getRCC()->CR = 0;
+  setTimerCallback(nullptr);
+  ASSERT_FALSE(switchClock(false));
+  ASSERT_EQ(getRCC()->CR & RCC_CR_HSEON, RCC_CR_HSEON);
+}
+
+TEST(SMC_40CR2, switchClockExternalFailureWhenHSIReadyAndClockSwitchTimeout) {
+  getRCC()->CR = 0;
+  setTimerCallback([](uint32_t timeoutCycles){
+      if(timeoutCycles >= 5) {
+          getRCC()->CR |= RCC_CR_HSERDY;
+      }
+  });
+  ASSERT_FALSE(switchClock(false));
+}
+
+TEST(SMC_40CR2, switchClockExternalSuccess) {
+  getRCC()->CR = 0;
+  setTimerCallback([](uint32_t timeoutCycles){
+      if(timeoutCycles >= 0) {
+          getRCC()->CR |= RCC_CR_HSERDY|RCC_CR_CLKSEL_1;
+      }
+  });
+  ASSERT_TRUE(switchClock(false));
+}
+
+TEST(SMC_40CR2, SetSystemAndBusClockConfig) {
+  // ASSERT_TRUE(SetSystemAndBusClockConfig(SYS_CLOCK_SPEED_160M, 2, true) == 0);
 }
 
 int main(int argc, char **argv) {

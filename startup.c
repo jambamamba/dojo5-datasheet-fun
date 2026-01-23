@@ -51,7 +51,7 @@ bool switchDefaultClock() {
   RCC_CR |= RCC_CR_DEF_CLOCK;
   do {
     volatile uint32_t rccCrReg = RCC_CR;
-    clockselTimeout++;
+    clockselTimeout = incrementTimeoutCycles(clockselTimeout);
     // LOG("clockselTimeout:%i, timeoutCycles:%i", clockselTimeout, timeoutCycles);
   } while (!isDefaultClock() && (clockselTimeout < CLKSEL_SWITCH_MAX_TIME_IN_CYCLES));
   return isDefaultClock();
@@ -151,20 +151,20 @@ static bool unlockRCC() {
 static void lockRCC() {
   RCC_LOCK |= RCC_LOCK_LOCK;
 }
-static bool turnOnPLL() {
+bool turnOnPLL() {
   RCC_CR |= RCC_CR_PLLON;
   uint32_t timeoutCycles = 0U;
   bool isPllReady = false;
   do {
     volatile uint32_t rccCrReg = RCC_CR;
     isPllReady = ((rccCrReg & RCC_CR_PLL_RDY) != 0);
-    timeoutCycles++;
-    // LOG("timeoutCycles:%i", timeoutCycles);
+    timeoutCycles = incrementTimeoutCycles(timeoutCycles);
+    // LOG("timeoutCycles:%i, rccCrReg:0x%x, RCC_CR_PLL_RDY:0x%x", timeoutCycles, rccCrReg, RCC_CR_PLL_RDY);
   } while (!isPllReady && (timeoutCycles < PLL_READY_TIME_OUT_CYCLES));
   return isPllReady;
 }
 
-  bool setInternalClock() {
+bool setInternalClock() {
     bool isClkReady = false;
     // Internal clock!
     // Set HSION to 1 and wait for HSIRDY to be 1
@@ -175,7 +175,7 @@ static bool turnOnPLL() {
     do {
       volatile uint32_t rccCrReg = RCC_CR;
       isClkReady = ((rccCrReg & RCC_CR_HSIRDY) != 0);
-      timeoutCycles++;
+      timeoutCycles = incrementTimeoutCycles(timeoutCycles);
       // LOG("timeoutCycles:%i", timeoutCycles);
     } while (!isClkReady && (timeoutCycles < HSIRDY_MAX_TIME_IN_CYCLES));
     return isClkReady;
@@ -190,7 +190,7 @@ bool setExternalClock() {
     do {
       volatile uint32_t rccCrReg = RCC_CR;
       isClkReady = ((rccCrReg & RCC_CR_HSERDY) != 0);
-      timeoutCycles++;
+      timeoutCycles = incrementTimeoutCycles(timeoutCycles);
       // LOG("timeoutCycles:%i", timeoutCycles);
     } while (!isClkReady && (timeoutCycles < HSERDY_MAX_TIME_IN_CYCLES));
     return isClkReady;
@@ -203,7 +203,7 @@ bool waitForClockSwitch(uint32_t expectedClockSel) {
     volatile uint32_t rccCrReg = RCC_CR;
     // isClkReady = ((rccCrReg & RCC_CR_CLKSEL) != 0);//osm:bug - should check explicitly for RCC_CR_CLKSEL_0 or RCC_CR_CLKSEL_1, because this test will pass for (RCC_CR_CLKSEL_0|RCC_CR_CLKSEL_1) which would be wrong
     isClkReady = ((rccCrReg & RCC_CR_CLKSEL) == expectedClockSel);
-    clockselTimeout++;
+    clockselTimeout = incrementTimeoutCycles(clockselTimeout);
     // LOG("clockselTimeout:%i, timeoutCycles:%i", clockselTimeout, timeoutCycles);
   } while (!isClkReady && (clockselTimeout < CLKSEL_SWITCH_MAX_TIME_IN_CYCLES));
   return isClkReady;

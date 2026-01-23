@@ -7,13 +7,13 @@ add_subdirectory(googletest)
 add_library("l${PROJECT_NAME}" STATIC startup.c logger.c)
 target_compile_definitions("l${PROJECT_NAME}" PRIVATE MOCK_REGISTERS=1 TEST_STATIC_METHODS=1)
 
-add_executable(${PROJECT_NAME} test_main.c)
+add_executable(${PROJECT_NAME} test_main.c timer/timer_mock.c)
 target_link_libraries(${PROJECT_NAME} "l${PROJECT_NAME}")
 target_include_directories(${PROJECT_NAME} PRIVATE)
 
 ###
 enable_testing()
-add_executable("${PROJECT_NAME}_test" test_gtests.cpp)
+add_executable("${PROJECT_NAME}_test" test_gtests.cpp  timer/timer_mock.c)
 target_link_libraries("${PROJECT_NAME}_test" "l${PROJECT_NAME}" gtest gtest_main)
 target_compile_definitions("${PROJECT_NAME}_test" PRIVATE MOCK_REGISTERS=1 TEST_STATIC_METHODS=1)
 include(GoogleTest)
