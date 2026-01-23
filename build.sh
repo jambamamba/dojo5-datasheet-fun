@@ -180,9 +180,9 @@ COMMENT_BLOCK
 
 mkdir -p .build
 pushd .build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make -j
+cmake -DCMAKE_BUILD_TYPE=Debug -DFFF_GENERATE=ON -DFFF_UNIT_TESTING=ON ..
+cmake --build . --parallel
 # gdb \
 # ./smc40cr
-./smc40cr_test
+# ./smc40cr_gtests
 popd

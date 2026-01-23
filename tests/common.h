@@ -1,12 +1,11 @@
+#pragma once
 
-#include "gtest/gtest.h"
-#include "startup.h"
+#include <stdint.h>
 
-
+#ifdef __cplusplus
 extern "C" {
+#endif
 
-typedef void (*ontimer)(uint32_t timeoutCycles);
-void setTimerCallback(ontimer callback);
 /**
  * Unfortunately we cannot include SMC_40CR.h directly 
  * because it creates concrete objects:   
@@ -149,184 +148,11 @@ typedef struct
 #define RCC_LOCK_LOCK_STATUS             (1UL << RCC_LOCK_LOCK_STATUS_Pos)  /*!< RCC Lock status bit                       */ 
 
 
+typedef void (*ontimer)(uint32_t timeoutCycles);
+void setTimerCallback(ontimer callback);
+
 RCC_TypeDef *getRCC();
-}//extern "C" {  
 
-
-TEST(SMC_40CR1, validateSystemClockSpeed) {
-  ASSERT_FALSE(validateSystemClockSpeed(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_UNDEFINED-1)));
-  ASSERT_FALSE(validateSystemClockSpeed(SYS_CLOCK_SPEED_UNDEFINED));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_160M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_80M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_40M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_20M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_10M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_5M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_2_5M));
-  ASSERT_TRUE(validateSystemClockSpeed(SYS_CLOCK_SPEED_1_25M));
-  ASSERT_FALSE(validateSystemClockSpeed(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1)));
+#ifdef __cplusplus
 }
-
-TEST(SMC_40CR2, validateBusClockDivider) {
-    ASSERT_TRUE(validateBusClockDivider(2));
-    ASSERT_TRUE(validateBusClockDivider(4));
-    ASSERT_FALSE(validateBusClockDivider(0));
-    ASSERT_FALSE(validateBusClockDivider(999));
-}
-
-TEST(SMC_40CR2, switchDefaultClock) {
-    ASSERT_TRUE(switchDefaultClock());
-}
-TEST(SMC_40CR2, configurePLL) {
-  ASSERT_FALSE(configurePLL(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_UNDEFINED-1)));
-  ASSERT_FALSE(configurePLL(SYS_CLOCK_SPEED_UNDEFINED));
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_160M));
-  ASSERT_EQ(RCC_PLLCFGR_MUL_1, getRCC()->PLLCFGR & RCC_PLLCFGR_MUL);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_80M));
-  ASSERT_EQ(RCC_PLLCFGR_MUL_0, getRCC()->PLLCFGR & RCC_PLLCFGR_MUL);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_40M));
-  ASSERT_EQ(0, getRCC()->PLLCFGR & RCC_PLLCFGR_MUL);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_20M));
-  ASSERT_EQ(RCC_PLLCFGR_DIV_0, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_10M));
-  ASSERT_EQ(RCC_PLLCFGR_DIV_1, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_5M));
-  ASSERT_EQ(RCC_PLLCFGR_DIV_2, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_2_5M));
-  ASSERT_EQ(RCC_PLLCFGR_DIV_2, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
-  ASSERT_TRUE(configurePLL(SYS_CLOCK_SPEED_1_25M));
-  ASSERT_EQ(RCC_PLLCFGR_DIV_2, getRCC()->PLLCFGR & RCC_PLLCFGR_DIV);
-  ASSERT_FALSE(configurePLL(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1)));
-}
-
-TEST(SMC_40CR2, turnOnPLL) {
-  getRCC()->CR = 0;
-  setTimerCallback([](uint32_t timeoutCycles){
-      if(timeoutCycles >= 5) {
-          getRCC()->CR |= RCC_CR_PLL_RDY;
-      }
-  });
-  ASSERT_TRUE(turnOnPLL());
-  ASSERT_EQ(RCC_CR_PLLON, getRCC()->CR & RCC_CR_PLLON);
-}
-
-TEST(SMC_40CR2, selectSystemClockDivider) {
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_UNDEFINED-1));
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_UNDEFINED);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_160M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_80M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_40M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_20M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_10M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_5M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-  
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_2_5M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_0, RCC_CR_SYS_DIV_0);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(SYS_CLOCK_SPEED_1_25M);
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV_1, RCC_CR_SYS_DIV_1);
-
-  getRCC()->CR = 0;
-  selectSystemClockDivider(static_cast<System_Clock_Speeds_t>(SYS_CLOCK_SPEED_MAX_ENUM_VAL+1));
-  ASSERT_EQ(getRCC()->CR & RCC_CR_SYS_DIV, 0);
-}
-
-TEST(SMC_40CR2, selectBusClockDivider) {
-    getRCC()->CR = 0;
-    selectBusClockDivider(2);
-    ASSERT_EQ(getRCC()->CR & RCC_CR_BUS_DIV_0, RCC_CR_BUS_DIV_0);
-
-    getRCC()->CR = 0;
-    selectBusClockDivider(4);
-    ASSERT_EQ(getRCC()->CR & RCC_CR_BUS_DIV_1, RCC_CR_BUS_DIV_1);
-
-}
-
-TEST(SMC_40CR2, switchClockInternalFailureWhenHSINotReadyAndClockSwitchTimeout) {
-  getRCC()->CR = 0;
-  setTimerCallback(nullptr);
-  ASSERT_FALSE(switchClock(true));
-  ASSERT_EQ(getRCC()->CR & RCC_CR_HSION, RCC_CR_HSION);
-}
-
-TEST(SMC_40CR2, switchClockInternalFailureWhenHSIReadyAndClockSwitchTimeout) {
-  getRCC()->CR = 0;
-  setTimerCallback([](uint32_t timeoutCycles){
-      if(timeoutCycles >= 5) {
-          getRCC()->CR |= RCC_CR_HSIRDY;
-      }
-  });
-  ASSERT_FALSE(switchClock(true));
-}
-
-TEST(SMC_40CR2, switchClockInternalSuccess) {
-  getRCC()->CR = 0;
-  setTimerCallback([](uint32_t timeoutCycles){
-      if(timeoutCycles >= 5) {
-          getRCC()->CR |= RCC_CR_HSIRDY|RCC_CR_CLKSEL_0;
-      }
-  });
-  ASSERT_TRUE(switchClock(true));
-}
-
-TEST(SMC_40CR2, switchClockExternalFailureWhenHSINotReadyAndClockSwitchTimeout) {
-  getRCC()->CR = 0;
-  setTimerCallback(nullptr);
-  ASSERT_FALSE(switchClock(false));
-  ASSERT_EQ(getRCC()->CR & RCC_CR_HSEON, RCC_CR_HSEON);
-}
-
-TEST(SMC_40CR2, switchClockExternalFailureWhenHSIReadyAndClockSwitchTimeout) {
-  getRCC()->CR = 0;
-  setTimerCallback([](uint32_t timeoutCycles){
-      if(timeoutCycles >= 5) {
-          getRCC()->CR |= RCC_CR_HSERDY;
-      }
-  });
-  ASSERT_FALSE(switchClock(false));
-}
-
-TEST(SMC_40CR2, switchClockExternalSuccess) {
-  getRCC()->CR = 0;
-  setTimerCallback([](uint32_t timeoutCycles){
-      if(timeoutCycles >= 0) {
-          getRCC()->CR |= RCC_CR_HSERDY|RCC_CR_CLKSEL_1;
-      }
-  });
-  ASSERT_TRUE(switchClock(false));
-}
-
-TEST(SMC_40CR2, SetSystemAndBusClockConfig) {
-  // ASSERT_TRUE(SetSystemAndBusClockConfig(SYS_CLOCK_SPEED_160M, 2, true) == 0);
-}
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+#endif
