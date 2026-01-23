@@ -9,10 +9,11 @@
  */
 #include <stdio.h>
 #include "startup.h"
+#include "logger.h"
 
 int32_t main(void)
 {
-  int32_t retVal = SetSystemAndBusClockConfig(SYS_CLOCK_SPEED_10M, 0, false);
+  int32_t retVal = SetSystemAndBusClockConfig(SYS_CLOCK_SPEED_10M, 1, false);
   printf("Run complete! Return value is: %d\n", retVal);
 
   return 0;
